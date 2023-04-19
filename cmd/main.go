@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
 	"github.com/zhashkevych/dex-arbitrage/screener/internal/dex/uniswap"
 )
@@ -24,6 +25,13 @@ func main() {
 
 	// Connect to Ethereum
 	rpcURL := os.Getenv("ALCHEMY_RPC_URL_MAINNET")
+	client, err := ethclient.Dial(rpcURL)
+	if err != nil {
+		fmt.Println("Error connecting to Ethereum")
+		return
+	}
+	defer client.Close()
 
-	uniswap.Calculate(rpcURL)
+	uniswapLP := uniswap.NewLiquidityPool(client)
+	uniswapLP.Fetch()
 }

@@ -10,36 +10,46 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/zhashkevych/dex-arbitrage/screener/internal/dex/data"
+
 	"github.com/zhashkevych/dex-arbitrage/screener/pkg/erc20"
 )
 
-func Calculate(rpcURL string) {
-	client, err := ethclient.Dial(rpcURL)
-	if err != nil {
-		fmt.Println("Error connecting to Ethereum")
-		return
-	}
-	defer client.Close()
+type LiquidityPool struct {
+	client *ethclient.Client
+}
 
+func NewLiquidityPool(client *ethclient.Client) *LiquidityPool {
+	return &LiquidityPool{client}
+}
+
+func (lp LiquidityPool) Fetch() {
 	// Get token addresses
-	token0 := data.Tokens["ETHEREUM"]["USDC"]
-	token1 := data.Tokens["ETHEREUM"]["WETH"]
+	token0 := Tokens[ETHEREUM][USDC]
+	token1 := Tokens[ETHEREUM][WETH]
 	fee := big.NewInt(500)
 
-	fmt.Println(token0.Hex())
-	fmt.Println(token1.Hex())
-
 	// Get Uniswap V3 pool address
-	uniswapV3FactoryAddress := common.HexToAddress(data.DexData["ETHEREUM"]["UniswapV3Factory"])
+	uniswapV3FactoryAddress := common.HexToAddress(DexData[ETHEREUM]["UniswapV3Factory"])
 
-	uniswapV3Factory, err := NewUniswapV3Factory(uniswapV3FactoryAddress, client)
+	uniswapV3Factory, err := NewUniswapV3Factory(uniswapV3FactoryAddress, lp.client)
 	if err != nil {
 		fmt.Println("Error parsing UniswapV3Factory ABI")
 		return
 	}
 
 	uniswapV3PoolAddress, err := uniswapV3Factory.GetPool(&bind.CallOpts{}, token0, token1, fee)
+	if err != nil {
+		fmt.Println("Error getting UniswapV3 pool address")
+		return
+	}
+
+	uniswapV3Pool, err := NewUniswapV3Pool(uniswapV3PoolAddress, lp.client)
+	if err != nil {
+		fmt.Println("Error getting UniswapV3 pool address")
+		return
+	}
+
+	poolFee, err := uniswapV3Pool.Fee(&bind.CallOpts{})
 	if err != nil {
 		fmt.Println("Error getting UniswapV3 pool address")
 		return
@@ -57,8 +67,8 @@ func Calculate(rpcURL string) {
 		return
 	}
 
-	token0Address := data.Tokens["ETHEREUM"]["WETH"]
-	token0Contract, err := erc20.NewERC20(token0Address, client)
+	token0Address := Tokens[ETHEREUM][WETH]
+	token0Contract, err := erc20.NewERC20(token0Address, lp.client)
 	if err != nil {
 		fmt.Println("Error creating token0 contract instance")
 		return
@@ -71,8 +81,8 @@ func Calculate(rpcURL string) {
 	}
 	fmt.Printf("Token0 balance in the pool: %v\n", token0BalancePool)
 
-	token1Address := data.Tokens["ETHEREUM"]["USDC"]
-	token1Contract, err := erc20.NewERC20(token1Address, client)
+	token1Address := Tokens["ETHEREUM"]["USDC"]
+	token1Contract, err := erc20.NewERC20(token1Address, lp.client)
 	if err != nil {
 		fmt.Println("Error creating token1 contract instance")
 		return
@@ -84,4 +94,6 @@ func Calculate(rpcURL string) {
 		return
 	}
 	fmt.Printf("Token1 balance in the pool: %v\n", token1BalancePool)
+
+	fmt.Printf("Fee: %v\n", poolFee)
 }

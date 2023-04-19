@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package pool;
+option go_package = "./models";
+
+message PoolData {
+    string dex = 1;
+    string dex_id = 2;
+    string pool = 3;
+    string pool_address = 4;
+    string token_one = 5;
+    string token_two = 6;
+    string token_one_balance = 7;
+    string token_two_balance = 8;
+    string fee = 9;
+}
