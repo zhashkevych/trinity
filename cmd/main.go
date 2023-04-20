@@ -32,6 +32,10 @@ func main() {
 	}
 	defer client.Close()
 
-	uniswapLP := uniswap.NewLiquidityPool(client)
-	uniswapLP.Fetch()
+	uniswapLPClient := uniswap.NewLiquidityPoolClient(client)
+	poolsData := uniswapLPClient.ParseAllEthereumPools()
+
+	for _, pd := range poolsData {
+		fmt.Printf("%+v\n", pd)
+	}
 }
