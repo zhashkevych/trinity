@@ -9,8 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
 
-	"github.com/zhashkevych/dex-arbitrage/screener/internal/models"
-	"github.com/zhashkevych/dex-arbitrage/screener/pkg/erc20"
+	"github.com/zhashkevych/dex-pools-aggregator/internal/models"
+	"github.com/zhashkevych/dex-pools-aggregator/pkg/erc20"
 )
 
 // TODO: in which datatype should we exchange balances?

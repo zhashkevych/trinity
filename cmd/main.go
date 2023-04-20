@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
-	"github.com/zhashkevych/dex-arbitrage/screener/internal/dex/uniswap"
+	"github.com/zhashkevych/dex-pools-aggregator/internal/dex/uniswap"
 )
 
 type Token struct {

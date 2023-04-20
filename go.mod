@@ -1,4 +1,4 @@
-module github.com/zhashkevych/dex-arbitrage/screener
+module github.com/zhashkevych/dex-pools-aggregator
 
 go 1.18
 
