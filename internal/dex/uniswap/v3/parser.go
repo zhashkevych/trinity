@@ -1,4 +1,4 @@
-package uniswap
+package v3
 
 import (
 	"encoding/json"
@@ -9,24 +9,25 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
 
+	"github.com/zhashkevych/dex-pools-aggregator/internal/dex"
 	"github.com/zhashkevych/dex-pools-aggregator/internal/models"
 	"github.com/zhashkevych/dex-pools-aggregator/pkg/erc20"
 )
 
 // TODO: in which datatype should we exchange balances?
 
-type LiquidityPoolClient struct {
+type LiquidityPoolParser struct {
 	client *ethclient.Client
 }
 
-func NewLiquidityPoolClient(client *ethclient.Client) *LiquidityPoolClient {
-	return &LiquidityPoolClient{client}
+func NewLiquidityPoolParser(client *ethclient.Client) *LiquidityPoolParser {
+	return &LiquidityPoolParser{client}
 }
 
-func (lp LiquidityPoolClient) ParseAllEthereumPools() []*models.PoolData {
+func (lp LiquidityPoolParser) ParseAllEthereumPools() []*models.PoolData {
 	out := make([]*models.PoolData, 0)
 
-	for pair, pool := range Pools {
+	for pair, pool := range PoolsV3 {
 		fmt.Printf("-> Parsing %s <-\n", pair)
 
 		poolData, err := lp.ParsePool(pool)
@@ -41,7 +42,7 @@ func (lp LiquidityPoolClient) ParseAllEthereumPools() []*models.PoolData {
 	return out
 }
 
-func (lp LiquidityPoolClient) ParsePool(pool Pool) (*models.PoolData, error) {
+func (lp LiquidityPoolParser) ParsePool(pool dex.Pool) (*models.PoolData, error) {
 	// Get token balances in the pool
 	tokenAbiBytes, err := ioutil.ReadFile("abi/ERC20.json")
 	if err != nil {

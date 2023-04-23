@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
-	"github.com/zhashkevych/dex-pools-aggregator/internal/dex/uniswap"
+	v3 "github.com/zhashkevych/dex-pools-aggregator/internal/dex/uniswap/v3"
 )
 
 type Token struct {
@@ -32,7 +32,7 @@ func main() {
 	}
 	defer client.Close()
 
-	uniswapLPClient := uniswap.NewLiquidityPoolClient(client)
+	uniswapLPClient := v3.NewLiquidityPoolClient(client)
 	poolsData := uniswapLPClient.ParseAllEthereumPools()
 
 	for _, pd := range poolsData {
