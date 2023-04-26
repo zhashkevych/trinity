@@ -1,4 +1,4 @@
-package v3
+package v2
 
 import (
 	"math/big"
@@ -8,18 +8,21 @@ import (
 	"github.com/zhashkevych/dex-pools-aggregator/pkg/web3"
 )
 
+const (
+	UniswapV2Fee int64 = 3 // 0.003
+)
+
 var DexData = map[web3.Blockchain]map[string]string{
 	web3.ETHEREUM: {
-		"UniswapV3Factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
-		"QuoterV2":         "0x61ffe014ba17989e743c5f6cb21bf9697530b21e",
+		"UniswapV2Pair": "0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc",
 	},
 }
 
 // TODO: parse from config.
-var PoolsV3 = map[string]*dex.PoolPair{
+var PoolsV2 = map[string]*dex.PoolPair{
 	"USDC / ETH": {
 		Pair:             "USDC / ETH",
-		Addr:             common.HexToAddress("0x8ad599c3a0ff1de082011efddc58f1908eb6e6d8"),
+		Addr:             common.HexToAddress("0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc"),
 		TokenOne:         web3.USDC,
 		TokenTwo:         web3.ETH,
 		TokenOneAddr:     dex.Tokens[web3.ETHEREUM][web3.USDC],

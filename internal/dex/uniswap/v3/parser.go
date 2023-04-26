@@ -142,8 +142,14 @@ func (lp LiquidityPoolParser) ParsePool(pool *dex.PoolPair) (*models.PoolData, e
 	}, nil
 }
 
-// FromTokenUnits converts a raw balance in the smallest token units to the full balance
+// TODO move to shared pkg lib
+// ToTokenUnits converts a raw balance in the smallest token units to the full balance
 func ToTokenUnits(rawBalance *big.Int, decimals int64) *big.Int {
 	// return big.NewInt(0).Div(rawBalance, big.NewInt(0).Exp(big.NewInt(10), big.NewInt(decimals), nil))
 	return big.NewInt(0).Mul(rawBalance, big.NewInt(0).Exp(big.NewInt(10), big.NewInt(decimals), nil))
+}
+
+// EXTEND LOGIC OF QuoterV2 ABI
+func (_QuoterV2 *QuoterV2Caller) CallQuoteExactInputSingle(opts *bind.CallOpts, res *[]interface{}, params IQuoterV2QuoteExactInputSingleParams) error {
+	return _QuoterV2.contract.Call(opts, res, "quoteExactInputSingle", params)
 }

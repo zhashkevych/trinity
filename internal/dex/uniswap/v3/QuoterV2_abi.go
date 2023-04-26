@@ -317,10 +317,6 @@ func (_QuoterV2 *QuoterV2Transactor) QuoteExactInputSingle(opts *bind.TransactOp
 	return _QuoterV2.contract.Transact(opts, "quoteExactInputSingle", params)
 }
 
-func (_QuoterV2 *QuoterV2Caller) CallQuoteExactInputSingle(opts *bind.CallOpts, res *[]interface{}, params IQuoterV2QuoteExactInputSingleParams) error {
-	return _QuoterV2.contract.Call(opts, res, "quoteExactInputSingle", params)
-}
-
 // QuoteExactInputSingle is a paid mutator transaction binding the contract method 0xc6a5026a.
 //
 // Solidity: function quoteExactInputSingle((address,address,uint256,uint24,uint160) params) returns(uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate)

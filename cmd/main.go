@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
+	v2 "github.com/zhashkevych/dex-pools-aggregator/internal/dex/uniswap/v2"
 	v3 "github.com/zhashkevych/dex-pools-aggregator/internal/dex/uniswap/v3"
 )
 
@@ -64,4 +65,38 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	fmt.Println("--- UNISWAP v2 ---")
+
+	uniswapV2Parser, err := v2.NewLiquidityPoolParser(client)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = uniswapV2Parser.CalculateEffectivePrice(v2.CalculateEffectivePriceInput{
+		TokenInAddr:      v2.PoolsV2["USDC / ETH"].TokenOneAddr,
+		TokenOutAddr:     v2.PoolsV2["USDC / ETH"].TokenTwoAddr,
+		TokenInDecimals:  v2.PoolsV2["USDC / ETH"].TokenOne.GetMultiplicator(),
+		TokenOutDecimals: v2.PoolsV2["USDC / ETH"].TokenTwo.GetMultiplicator(),
+		AmountIn:         v2.PoolsV2["USDC / ETH"].TokenOneAmountIn,
+		// Fee:              v3.PoolsV3["USDC / ETH"].Fee,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("--- REVERSE ---")
+
+	_, err = uniswapV2Parser.CalculateEffectivePrice(v2.CalculateEffectivePriceInput{
+		TokenInAddr:      v2.PoolsV2["USDC / ETH"].TokenTwoAddr,
+		TokenOutAddr:     v2.PoolsV2["USDC / ETH"].TokenOneAddr,
+		TokenInDecimals:  v2.PoolsV2["USDC / ETH"].TokenTwo.GetMultiplicator(),
+		TokenOutDecimals: v2.PoolsV2["USDC / ETH"].TokenOne.GetMultiplicator(),
+		AmountIn:         v2.PoolsV2["USDC / ETH"].TokenTwoAmountIn,
+		// Fee:              v2.PoolsV2["USDC / ETH"].Fee,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }
