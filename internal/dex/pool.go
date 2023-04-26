@@ -4,17 +4,20 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/zhashkevych/dex-pools-aggregator/pkg/web3"
 )
 
 // TODO: store smart contract addresses in JSON config and parse into global config
 
-type Pool struct {
+type PoolPair struct {
 	Pair             string
 	Addr             common.Address
+	TokenOne         web3.Cryptocurrency
+	TokenTwo         web3.Cryptocurrency
 	TokenOneAddr     common.Address
 	TokenTwoAddr     common.Address
-	TokenOneAmountIn int64
-	TokenTwoAmountIn int64
+	TokenOneAmountIn *big.Int
+	TokenTwoAmountIn *big.Int
 	Fee              *big.Int
 }
 
