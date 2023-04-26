@@ -39,14 +39,29 @@ func main() {
 		log.Fatal(err)
 	}
 
-	_, err = uniswapV3Parser.CalculateEffectivePrice(v3.PoolsV3["USDC / ETH"])
+	_, err = uniswapV3Parser.CalculateEffectivePrice(v3.CalculateEffectivePriceInput{
+		TokenInAddr:      v3.PoolsV3["USDC / ETH"].TokenOneAddr,
+		TokenOutAddr:     v3.PoolsV3["USDC / ETH"].TokenTwoAddr,
+		TokenInDecimals:  v3.PoolsV3["USDC / ETH"].TokenOne.GetMultiplicator(),
+		TokenOutDecimals: v3.PoolsV3["USDC / ETH"].TokenTwo.GetMultiplicator(),
+		AmountIn:         v3.PoolsV3["USDC / ETH"].TokenOneAmountIn,
+		Fee:              v3.PoolsV3["USDC / ETH"].Fee,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// poolsData := uniswapV3Parser.ParseAllEthereumPools()
+	fmt.Println("--- REVERSE ---")
 
-	// for _, pd := range poolsData {
-	// 	fmt.Printf("%+v\n", pd)
-	// }
+	_, err = uniswapV3Parser.CalculateEffectivePrice(v3.CalculateEffectivePriceInput{
+		TokenInAddr:      v3.PoolsV3["USDC / ETH"].TokenTwoAddr,
+		TokenOutAddr:     v3.PoolsV3["USDC / ETH"].TokenOneAddr,
+		TokenInDecimals:  v3.PoolsV3["USDC / ETH"].TokenTwo.GetMultiplicator(),
+		TokenOutDecimals: v3.PoolsV3["USDC / ETH"].TokenOne.GetMultiplicator(),
+		AmountIn:         v3.PoolsV3["USDC / ETH"].TokenTwoAmountIn,
+		Fee:              v3.PoolsV3["USDC / ETH"].Fee,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 }

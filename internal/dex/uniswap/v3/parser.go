@@ -29,15 +29,24 @@ func NewLiquidityPoolParser(client *ethclient.Client) (*LiquidityPoolParser, err
 	return &LiquidityPoolParser{client, quoterv2client}, nil
 }
 
-func (lp LiquidityPoolParser) CalculateEffectivePrice(poolPair *dex.PoolPair) (*big.Int, error) {
-	// to token units
-	fmt.Println("token 1 amount in", poolPair.TokenOneAmountIn)
-	fmt.Println("token 1 multiplicator", poolPair.TokenOne.GetMultiplicator())
+type CalculateEffectivePriceInput struct {
+	TokenInAddr      common.Address
+	TokenOutAddr     common.Address
+	TokenInDecimals  int64
+	TokenOutDecimals int64
+	AmountIn         *big.Int
+	Fee              *big.Int
+}
 
-	amountIn := ToTokenUnits(poolPair.TokenOneAmountIn, poolPair.TokenOne.GetMultiplicator())
+func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePriceInput) (*big.Int, error) {
+	// to token units
+	fmt.Println("token 1 amount in", inp.AmountIn)
+	fmt.Println("token 1 multiplicator", inp.TokenInDecimals)
+
+	amountIn := ToTokenUnits(inp.AmountIn, inp.TokenInDecimals)
 
 	fmt.Println(amountIn)
-	fmt.Printf("%+v\n", poolPair)
+	fmt.Printf("%+v\n", inp)
 
 	res := make([]interface{}, 0)
 
@@ -45,10 +54,10 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(poolPair *dex.PoolPair) (*
 		&bind.CallOpts{},
 		&res,
 		IQuoterV2QuoteExactInputSingleParams{
-			TokenIn:           poolPair.TokenOneAddr,
-			TokenOut:          poolPair.TokenTwoAddr,
+			TokenIn:           inp.TokenInAddr,
+			TokenOut:          inp.TokenOutAddr,
 			AmountIn:          amountIn,
-			Fee:               poolPair.Fee,
+			Fee:               inp.Fee,
 			SqrtPriceLimitX96: big.NewInt(0),
 		})
 	if err != nil {
@@ -65,7 +74,7 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(poolPair *dex.PoolPair) (*
 	amountOut := res[0].(*big.Int)
 	fmt.Println("amount out", amountOut)
 
-	amountOut.Mul(amountOut, big.NewInt(10^(poolPair.TokenOne.GetMultiplicator()-poolPair.TokenTwo.GetMultiplicator()))) // I don't know what's going on but it works. Just copied logic from Oleg's python code.
+	amountOut.Mul(amountOut, big.NewInt(10^(inp.TokenInDecimals-inp.TokenOutDecimals))) // I don't know what's going on but it works. Just copied logic from Oleg's python code.
 
 	pricePerToken := big.NewInt(0).Div(amountIn, amountOut)
 
@@ -73,7 +82,7 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(poolPair *dex.PoolPair) (*
 	fmt.Println("amount out", amountOut)
 	fmt.Println("price per token", pricePerToken)
 
-	return nil, nil
+	return pricePerToken, nil
 }
 
 func (lp LiquidityPoolParser) ParseAllEthereumPools() []*models.PoolData {
