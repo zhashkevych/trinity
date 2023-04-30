@@ -1,4 +1,4 @@
-module github.com/zhashkevych/dex-pools-aggregator
+module github.com/zhashkevych/trinity
 
 go 1.18
 

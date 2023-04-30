@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 
-	"github.com/zhashkevych/dex-pools-aggregator/pkg/web3"
+	"github.com/zhashkevych/trinity/pkg/web3"
 )
 
 type LiquidityPoolParser struct {

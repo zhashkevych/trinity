@@ -7,8 +7,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
-	v2 "github.com/zhashkevych/dex-pools-aggregator/internal/dex/uniswap/v2"
-	v3 "github.com/zhashkevych/dex-pools-aggregator/internal/dex/uniswap/v3"
+	v2 "github.com/zhashkevych/trinity/internal/dex/uniswap/v2"
+	v3 "github.com/zhashkevych/trinity/internal/dex/uniswap/v3"
 )
 
 /*

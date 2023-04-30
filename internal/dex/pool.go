@@ -4,7 +4,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/zhashkevych/dex-pools-aggregator/pkg/web3"
+	"github.com/zhashkevych/trinity/pkg/web3"
 )
 
 // TODO: store smart contract addresses in JSON config and parse into global config
