@@ -9,9 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 
-	"github.com/zhashkevych/dex-pools-aggregator/internal/dex"
-	"github.com/zhashkevych/dex-pools-aggregator/internal/models"
-	"github.com/zhashkevych/dex-pools-aggregator/pkg/erc20"
 	"github.com/zhashkevych/dex-pools-aggregator/pkg/web3"
 )
 
@@ -38,15 +35,9 @@ type CalculateEffectivePriceInput struct {
 	Fee              *big.Int
 }
 
-func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePriceInput) (*big.Int, error) {
-	// to token units
-	fmt.Println("token 1 amount in", inp.AmountIn)
-	fmt.Println("token 1 multiplicator", inp.TokenInDecimals)
-
-	amountIn := ToTokenUnits(inp.AmountIn, inp.TokenInDecimals)
-
-	fmt.Println(amountIn)
-	fmt.Printf("%+v\n", inp)
+func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePriceInput) (*big.Float, error) {
+	amountIn := web3.ToTokenUnits(inp.AmountIn, inp.TokenInDecimals)
+	amountInF := big.NewFloat(0).SetInt(amountIn)
 
 	res := make([]interface{}, 0)
 
@@ -65,88 +56,28 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePric
 		return nil, err
 	}
 
-	fmt.Println(res)
-
 	if res == nil {
 		return nil, errors.New("didn't receive data from Quoter V2")
 	}
 
-	amountOut := res[0].(*big.Int)
-	fmt.Println("amount out", amountOut)
+	amountOut := big.NewFloat(0).SetInt(res[0].(*big.Int))
 
-	amountOut.Mul(amountOut, big.NewInt(10^(inp.TokenInDecimals-inp.TokenOutDecimals))) // I don't know what's going on but it works. Just copied logic from Oleg's python code.
+	// This logic in python looks like that
+	// amount_out = amount_out * (10 ** (token_in_decimals - token_out_decimals))
 
-	pricePerToken := big.NewInt(0).Div(amountIn, amountOut)
+	var pow big.Int                                                        // Here we calculate the value for 10 ^ (x). x can be negative.
+	pow.Abs(big.NewInt(int64(inp.TokenInDecimals - inp.TokenOutDecimals))) // USDC (6) - ETH (18) = -12
+	exp := big.NewInt(10).Exp(big.NewInt(10), &pow, nil)
 
-	fmt.Println("amount in", amountIn)
-	fmt.Println("amount out", amountOut)
-	fmt.Println("price per token", pricePerToken)
+	if inp.TokenInDecimals < inp.TokenOutDecimals {
+		amountOut = amountOut.Quo(amountOut, big.NewFloat(0).SetInt(exp))
+	} else {
+		amountOut = amountOut.Mul(amountOut, big.NewFloat(0).SetInt(exp))
+	}
+
+	pricePerToken := big.NewFloat(0).Quo(amountInF, amountOut)
 
 	return pricePerToken, nil
-}
-
-func (lp LiquidityPoolParser) ParseAllEthereumPools() []*models.PoolData {
-	out := make([]*models.PoolData, 0)
-
-	for pair, pool := range PoolsV3 {
-		fmt.Printf("-> Parsing %s <-\n", pair)
-
-		poolData, err := lp.ParsePool(pool)
-		if err != nil {
-			fmt.Println("error: ", err)
-			continue
-		}
-
-		out = append(out, poolData)
-	}
-
-	return out
-}
-
-func (lp LiquidityPoolParser) ParsePool(pool *dex.PoolPair) (*models.PoolData, error) {
-	// Get token balances in the pool
-	token0Contract, err := erc20.NewERC20(pool.TokenOneAddr, lp.client)
-	if err != nil {
-		fmt.Println("Error creating token0 contract instance")
-		return nil, err
-	}
-
-	token0BalancePool, err := token0Contract.BalanceOf(&bind.CallOpts{}, pool.Addr)
-	if err != nil {
-		fmt.Println("Error getting token0 balance in the pool")
-		return nil, err
-	}
-
-	token1Contract, err := erc20.NewERC20(pool.TokenTwoAddr, lp.client)
-	if err != nil {
-		fmt.Println("Error creating token1 contract instance")
-		return nil, err
-	}
-
-	token1BalancePool, err := token1Contract.BalanceOf(&bind.CallOpts{}, pool.Addr)
-	if err != nil {
-		fmt.Println("Error getting token1 balance in the pool")
-		return nil, err
-	}
-
-	return &models.PoolData{
-		Dex:             "UNISWAP",
-		DexId:           "0",
-		Pool:            pool.Pair,
-		PoolAddress:     pool.Addr.String(),
-		TokenOne:        pool.TokenOneAddr.String(),
-		TokenTwo:        pool.TokenTwoAddr.String(),
-		TokenOneBalance: token0BalancePool.Text(10),
-		TokenTwoBalance: token1BalancePool.Text(10),
-		Fee:             pool.Fee.String(),
-	}, nil
-}
-
-// TODO move to shared pkg lib
-// ToTokenUnits converts a raw balance in the smallest token units to the full balance
-func ToTokenUnits(rawBalance *big.Int, decimals int64) *big.Int {
-	// return big.NewInt(0).Div(rawBalance, big.NewInt(0).Exp(big.NewInt(10), big.NewInt(decimals), nil))
-	return big.NewInt(0).Mul(rawBalance, big.NewInt(0).Exp(big.NewInt(10), big.NewInt(decimals), nil))
 }
 
 // EXTEND LOGIC OF QuoterV2 ABI

@@ -40,7 +40,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	_, err = uniswapV3Parser.CalculateEffectivePrice(v3.CalculateEffectivePriceInput{
+	effectivePrice1, err := uniswapV3Parser.CalculateEffectivePrice(v3.CalculateEffectivePriceInput{
 		TokenInAddr:      v3.PoolsV3["USDC / ETH"].TokenOneAddr,
 		TokenOutAddr:     v3.PoolsV3["USDC / ETH"].TokenTwoAddr,
 		TokenInDecimals:  v3.PoolsV3["USDC / ETH"].TokenOne.GetMultiplicator(),
@@ -52,9 +52,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("--- REVERSE ---")
-
-	_, err = uniswapV3Parser.CalculateEffectivePrice(v3.CalculateEffectivePriceInput{
+	effectivePrice2, err := uniswapV3Parser.CalculateEffectivePrice(v3.CalculateEffectivePriceInput{
 		TokenInAddr:      v3.PoolsV3["USDC / ETH"].TokenTwoAddr,
 		TokenOutAddr:     v3.PoolsV3["USDC / ETH"].TokenOneAddr,
 		TokenInDecimals:  v3.PoolsV3["USDC / ETH"].TokenTwo.GetMultiplicator(),
@@ -66,6 +64,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	fmt.Println("USDC / ETH")
+	fmt.Println("effective price 1:", effectivePrice1)
+	fmt.Println("effective price 2:", effectivePrice2)
+
 	fmt.Println("--- UNISWAP v2 ---")
 
 	uniswapV2Parser, err := v2.NewLiquidityPoolParser(client)
@@ -73,30 +75,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	_, err = uniswapV2Parser.CalculateEffectivePrice(v2.CalculateEffectivePriceInput{
-		TokenInAddr:      v2.PoolsV2["USDC / ETH"].TokenOneAddr,
-		TokenOutAddr:     v2.PoolsV2["USDC / ETH"].TokenTwoAddr,
+	uniswapV2Parser.CalculateEffectivePrice(v2.CalculateEffectivePriceInput{
+		PoolName:         "USDC / ETH",
 		TokenInDecimals:  v2.PoolsV2["USDC / ETH"].TokenOne.GetMultiplicator(),
 		TokenOutDecimals: v2.PoolsV2["USDC / ETH"].TokenTwo.GetMultiplicator(),
 		AmountIn:         v2.PoolsV2["USDC / ETH"].TokenOneAmountIn,
-		// Fee:              v3.PoolsV3["USDC / ETH"].Fee,
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("--- REVERSE ---")
-
-	_, err = uniswapV2Parser.CalculateEffectivePrice(v2.CalculateEffectivePriceInput{
-		TokenInAddr:      v2.PoolsV2["USDC / ETH"].TokenTwoAddr,
-		TokenOutAddr:     v2.PoolsV2["USDC / ETH"].TokenOneAddr,
-		TokenInDecimals:  v2.PoolsV2["USDC / ETH"].TokenTwo.GetMultiplicator(),
-		TokenOutDecimals: v2.PoolsV2["USDC / ETH"].TokenOne.GetMultiplicator(),
-		AmountIn:         v2.PoolsV2["USDC / ETH"].TokenTwoAmountIn,
-		// Fee:              v2.PoolsV2["USDC / ETH"].Fee,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
 }

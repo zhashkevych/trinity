@@ -1,6 +1,7 @@
 package v2
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -26,41 +27,60 @@ func NewLiquidityPoolParser(client *ethclient.Client) (*LiquidityPoolParser, err
 
 // TODO: maybe move to shared lib
 type CalculateEffectivePriceInput struct {
-	TokenInAddr      common.Address
-	TokenOutAddr     common.Address
+	PoolName         string
+	TokenInReserve   *big.Int
+	TokenOutReserve  *big.Int
 	TokenInDecimals  int64
 	TokenOutDecimals int64
 	AmountIn         *big.Int
-	Fee              *big.Int
 }
 
-func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePriceInput) (*big.Int, error) {
+func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePriceInput) {
 	reserves, err := lp.uniswapV2Pair.GetReserves(&bind.CallOpts{})
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	fmt.Printf("%+v\n", inp)
-	fmt.Printf("reserves %+v\n", reserves)
+	inp.TokenInReserve, inp.TokenOutReserve = reserves.Reserve0, reserves.Reserve1
 
-	// Some math right here
-	tokenInReserves := FromTokenUnits(reserves.Reserve0, inp.TokenInDecimals)
-	tokenOutReserves := FromTokenUnits(reserves.Reserve1, inp.TokenOutDecimals)
+	effectivePrice1, err := lp.calculateEffectivePrice(inp)
+	if err != nil {
+		return
+	}
 
-	netAmount := big.NewInt(0).Mul(inp.AmountIn, big.NewInt(1000-UniswapV2Fee))
+	inp.TokenInReserve, inp.TokenOutReserve = reserves.Reserve1, reserves.Reserve0
+	inp.TokenInDecimals, inp.TokenOutDecimals = inp.TokenOutDecimals, inp.TokenInDecimals
 
-	newTokenABalance := tokenInReserves.Add(tokenInReserves, netAmount)
-	newTokenBBalance := big.NewInt(0).Mul(tokenInReserves, big.NewInt(0).Div(tokenOutReserves, newTokenABalance))
+	effectivePrice2, err := lp.calculateEffectivePrice(inp)
+	if err != nil {
+		return
+	}
 
-	tokenBReceived := tokenOutReserves.Sub(tokenOutReserves, newTokenBBalance)
-
-	effectivePrice := inp.AmountIn.Div(inp.AmountIn, tokenBReceived)
-
-	fmt.Println("effective price:", effectivePrice)
-
-	return effectivePrice, nil
+	fmt.Println(inp.PoolName)
+	fmt.Println("effective price 1:", effectivePrice1)
+	fmt.Println("effective price 2:", effectivePrice2)
 }
 
-func FromTokenUnits(rawBalance *big.Int, decimals int64) *big.Int {
-	return big.NewInt(0).Div(rawBalance, big.NewInt(0).Exp(big.NewInt(10), big.NewInt(decimals), nil))
+func (lp LiquidityPoolParser) calculateEffectivePrice(inp CalculateEffectivePriceInput) (*big.Float, error) {
+	tokenInReserves := web3.FromTokenUnits(inp.TokenInReserve, inp.TokenInDecimals)
+	tokenOutReserves := web3.FromTokenUnits(inp.TokenOutReserve, inp.TokenOutDecimals)
+
+	amountInF := big.NewFloat(0).SetInt(inp.AmountIn)
+	netAmount := big.NewFloat(0).Mul(amountInF, big.NewFloat(1-0.003))
+
+	tokenInReservesF := big.NewFloat(0).SetInt(tokenInReserves)
+	tokenOutReservesF := big.NewFloat(0).SetInt(tokenOutReserves)
+
+	newTokenABalanceF := big.NewFloat(0).Add(tokenInReservesF, netAmount)
+	newTokenBBalanceF := big.NewFloat(0).Mul(tokenInReservesF, tokenOutReservesF)
+	newTokenBBalanceF = newTokenBBalanceF.Quo(newTokenBBalanceF, newTokenABalanceF)
+
+	tokenBReceivedF := tokenOutReservesF.Sub(tokenOutReservesF, newTokenBBalanceF)
+
+	effectivePriceF := amountInF.Quo(amountInF, tokenBReceivedF)
+	if effectivePriceF.IsInf() {
+		return nil, errors.New("division by zero")
+	}
+
+	return effectivePriceF, nil
 }
