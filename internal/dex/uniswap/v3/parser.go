@@ -4,11 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 
+	"github.com/zhashkevych/trinity/internal/dex"
 	"github.com/zhashkevych/trinity/pkg/web3"
 )
 
@@ -27,19 +29,55 @@ func NewLiquidityPoolParser(client *ethclient.Client) (*LiquidityPoolParser, err
 }
 
 type CalculateEffectivePriceInput struct {
+	PoolID           string
 	TokenInAddr      common.Address
 	TokenOutAddr     common.Address
 	TokenInDecimals  int64
 	TokenOutDecimals int64
-	AmountIn         *big.Int
+	TradeAmount0     *big.Float
+	TradeAmount1     *big.Float
 	Fee              *big.Int
+
+	amountIn *big.Float
 }
 
-func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePriceInput) (*big.Float, error) {
-	amountIn := web3.ToTokenUnits(inp.AmountIn, inp.TokenInDecimals)
-	amountInF := big.NewFloat(0).SetInt(amountIn)
+func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePriceInput) (*dex.EffectivePrice, error) {
+	// tradeAmount0, _ := inp.TradeAmount0.Int64()
+	// inp.amountIn = big.NewInt(tradeAmount0)
+	inp.amountIn = inp.TradeAmount0
+
+	effectivePrice0, err := lp.calculateEffectivePrice(inp)
+	if err != nil {
+		return nil, err
+	}
+
+	// reverse
+	inp.TokenInAddr, inp.TokenOutAddr = inp.TokenOutAddr, inp.TokenInAddr
+	inp.TokenInDecimals, inp.TokenOutDecimals = inp.TokenOutDecimals, inp.TokenInDecimals
+	// tradeAmount1, _ := inp.TradeAmount1.Int64()
+	// inp.amountIn = big.NewInt(tradeAmount1)
+	inp.amountIn = inp.TradeAmount1
+
+	effectivePrice1, err := lp.calculateEffectivePrice(inp)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dex.EffectivePrice{
+		DexID:           dex.UNISWAP_V3,
+		PoolID:          inp.PoolID,
+		EffectivePrice0: effectivePrice0,
+		EffectivePrice1: effectivePrice1,
+		Timestamp:       time.Now(),
+	}, nil
+}
+
+func (lp LiquidityPoolParser) calculateEffectivePrice(inp CalculateEffectivePriceInput) (*big.Float, error) {
+	amountIn := web3.ToTokenUnitsF(inp.amountIn, inp.TokenInDecimals)
+	// amountInF := big.NewFloat(0).SetInt(amountIn)
 
 	res := make([]interface{}, 0)
+	amountInI, _ := amountIn.Int(nil)
 
 	err := lp.quoterv2.CallQuoteExactInputSingle(
 		&bind.CallOpts{},
@@ -47,7 +85,7 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePric
 		IQuoterV2QuoteExactInputSingleParams{
 			TokenIn:           inp.TokenInAddr,
 			TokenOut:          inp.TokenOutAddr,
-			AmountIn:          amountIn,
+			AmountIn:          amountInI,
 			Fee:               inp.Fee,
 			SqrtPriceLimitX96: big.NewInt(0),
 		})
@@ -75,7 +113,7 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePric
 		amountOut = amountOut.Mul(amountOut, big.NewFloat(0).SetInt(exp))
 	}
 
-	pricePerToken := big.NewFloat(0).Quo(amountInF, amountOut)
+	pricePerToken := big.NewFloat(0).Quo(amountIn, amountOut)
 
 	return pricePerToken, nil
 }

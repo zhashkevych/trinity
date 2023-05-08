@@ -28,13 +28,16 @@ func NewLiquidityPoolParser(client *ethclient.Client) *LiquidityPoolParser {
 
 // TODO: maybe move to shared lib
 type CalculateEffectivePriceInput struct {
-	PoolName         string
-	PoolID           string
-	TokenInReserve   *big.Int
-	TokenOutReserve  *big.Int
+	PoolName string
+	PoolID   string
+	// TokenInReserve   *big.Int
+	// TokenOutReserve  *big.Int
 	TokenInDecimals  int64
 	TokenOutDecimals int64
-	AmountIn         *big.Int
+	// AmountIn         *big.Int
+
+	TradeAmount0 *big.Float
+	TradeAmount1 *big.Float
 }
 
 // CalculateEffectivePrice requires PoolID, token decimals and AmountIn
@@ -50,17 +53,24 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePric
 		return nil, err
 	}
 
-	inp.TokenInReserve, inp.TokenOutReserve = reserves.Reserve0, reserves.Reserve1
+	calcPriceInp := calculatePriceInput{
+		TokenInDecimals:  inp.TokenInDecimals,
+		TokenOutDecimals: inp.TokenOutDecimals,
+		AmountIn:         inp.TradeAmount0,
+	}
 
-	effectivePrice0, err := lp.calculateEffectivePrice(inp)
+	calcPriceInp.TokenInReserve, calcPriceInp.TokenOutReserve = reserves.Reserve0, reserves.Reserve1
+
+	effectivePrice0, err := lp.calculateEffectivePrice(calcPriceInp)
 	if err != nil {
 		return nil, err
 	}
 
-	inp.TokenInReserve, inp.TokenOutReserve = reserves.Reserve1, reserves.Reserve0
-	inp.TokenInDecimals, inp.TokenOutDecimals = inp.TokenOutDecimals, inp.TokenInDecimals
+	calcPriceInp.TokenInReserve, calcPriceInp.TokenOutReserve = reserves.Reserve1, reserves.Reserve0
+	calcPriceInp.TokenInDecimals, calcPriceInp.TokenOutDecimals = inp.TokenOutDecimals, inp.TokenInDecimals
+	calcPriceInp.AmountIn = inp.TradeAmount1
 
-	effectivePrice1, err := lp.calculateEffectivePrice(inp)
+	effectivePrice1, err := lp.calculateEffectivePrice(calcPriceInp)
 	if err != nil {
 		return nil, err
 	}
@@ -78,26 +88,33 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePric
 	}, nil
 }
 
-func (lp LiquidityPoolParser) calculateEffectivePrice(inp CalculateEffectivePriceInput) (*big.Float, error) {
+type calculatePriceInput struct {
+	TokenInReserve   *big.Int
+	TokenOutReserve  *big.Int
+	TokenInDecimals  int64
+	TokenOutDecimals int64
+	AmountIn         *big.Float
+}
+
+func (lp LiquidityPoolParser) calculateEffectivePrice(inp calculatePriceInput) (*big.Float, error) {
 	tokenInReserves := web3.FromTokenUnits(inp.TokenInReserve, inp.TokenInDecimals)
 	tokenOutReserves := web3.FromTokenUnits(inp.TokenOutReserve, inp.TokenOutDecimals)
 
-	amountInF := big.NewFloat(0).SetInt(inp.AmountIn)
-	netAmount := big.NewFloat(0).Mul(amountInF, big.NewFloat(1-0.003))
+	netAmount := big.NewFloat(0).Mul(inp.AmountIn, big.NewFloat(1-0.003))
 
 	tokenInReservesF := big.NewFloat(0).SetInt(tokenInReserves)
 	tokenOutReservesF := big.NewFloat(0).SetInt(tokenOutReserves)
 
-	newTokenABalanceF := big.NewFloat(0).Add(tokenInReservesF, netAmount)
-	newTokenBBalanceF := big.NewFloat(0).Mul(tokenInReservesF, tokenOutReservesF)
-	newTokenBBalanceF = newTokenBBalanceF.Quo(newTokenBBalanceF, newTokenABalanceF)
+	newTokenABalance := big.NewFloat(0).Add(tokenInReservesF, netAmount)
+	newTokenBBalance := big.NewFloat(0).Mul(tokenInReservesF, tokenOutReservesF)
+	newTokenBBalance = newTokenBBalance.Quo(newTokenBBalance, newTokenABalance)
 
-	tokenBReceivedF := tokenOutReservesF.Sub(tokenOutReservesF, newTokenBBalanceF)
+	tokenBReceived := tokenOutReservesF.Sub(tokenOutReservesF, newTokenBBalance)
 
-	effectivePriceF := amountInF.Quo(amountInF, tokenBReceivedF)
-	if effectivePriceF.IsInf() {
+	effectivePrice := inp.AmountIn.Quo(inp.AmountIn, tokenBReceived)
+	if effectivePrice.IsInf() {
 		return nil, errors.New("division by zero")
 	}
 
-	return effectivePriceF, nil
+	return effectivePrice, nil
 }

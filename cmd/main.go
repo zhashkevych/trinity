@@ -4,11 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
 	"github.com/zhashkevych/trinity/internal/dex"
+	v2 "github.com/zhashkevych/trinity/internal/dex/uniswap/v2"
+	v3 "github.com/zhashkevych/trinity/internal/dex/uniswap/v3"
+	"github.com/zhashkevych/trinity/internal/processor"
 )
 
 /*
@@ -48,6 +52,10 @@ func main() {
 		return
 	}
 
+	for i := range uniswapV2Pools {
+		uniswapV2Pools[i].DexID = dex.UNISWAP_V2
+	}
+
 	file, err = ioutil.ReadFile("pools/uniswapV3_Pools.json")
 	if err != nil {
 		fmt.Println("Error reading JSON file:", err)
@@ -61,6 +69,10 @@ func main() {
 		return
 	}
 
+	for i := range uniswapV3Pools {
+		uniswapV3Pools[i].DexID = dex.UNISWAP_V3
+	}
+
 	fmt.Println(len(uniswapV2Pools))
 	fmt.Println(len(uniswapV3Pools))
 
@@ -68,10 +80,10 @@ func main() {
 	// 	fmt.Printf("%+v\n", pool)
 	// }
 
-	// uniswapV3Parser, err := v3.NewLiquidityPoolParser(client)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	uniswapV3Parser, err := v3.NewLiquidityPoolParser(client)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// effectivePrice1, err := uniswapV3Parser.CalculateEffectivePrice(v3.CalculateEffectivePriceInput{
 	// 	TokenInAddr:      uniswapV3Pools[0].Token0.ID,
@@ -103,10 +115,18 @@ func main() {
 
 	// fmt.Println("--- UNISWAP v2 ---")
 
-	// uniswapV2Parser, err := v2.NewLiquidityPoolParser(client, v2.DexData[web3.ETHEREUM]["UniswapV2Pair"])
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	uniswapV2Parser := v2.NewLiquidityPoolParser(client)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pools := make([]*dex.PoolPair, 0)
+
+	pools = append(pools, uniswapV2Pools...)
+	pools = append(pools, uniswapV3Pools...)
+
+	p := processor.NewDexPoolProcessor(uniswapV2Parser, uniswapV3Parser)
+	p.StartProcessing(pools)
 
 	// uniswapV2Parser.CalculateEffectivePrice(v2.CalculateEffectivePriceInput{
 	// 	PoolName:         "USDC / ETH",
