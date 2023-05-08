@@ -1,33 +1,35 @@
+/*
+	THIS CODE SHOULD ALSO BE USED FOR SUSHISWAP INTERACTION
+*/
+
 package v2
 
 import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/zhashkevych/trinity/internal/dex"
 	"github.com/zhashkevych/trinity/pkg/web3"
 )
 
 type LiquidityPoolParser struct {
-	client        *ethclient.Client
-	uniswapV2Pair *UniswapV2Pair
+	client *ethclient.Client
 }
 
-func NewLiquidityPoolParser(client *ethclient.Client) (*LiquidityPoolParser, error) {
-	uniswapV2Pair, err := NewUniswapV2Pair(common.HexToAddress(DexData[web3.ETHEREUM]["UniswapV2Pair"]), client)
-	if err != nil {
-		return nil, err
-	}
-
-	return &LiquidityPoolParser{client, uniswapV2Pair}, nil
+// This module can be used both for Uni V2 and Sushiswap
+func NewLiquidityPoolParser(client *ethclient.Client) *LiquidityPoolParser {
+	return &LiquidityPoolParser{client}
 }
 
 // TODO: maybe move to shared lib
 type CalculateEffectivePriceInput struct {
 	PoolName         string
+	PoolID           string
 	TokenInReserve   *big.Int
 	TokenOutReserve  *big.Int
 	TokenInDecimals  int64
@@ -35,30 +37,45 @@ type CalculateEffectivePriceInput struct {
 	AmountIn         *big.Int
 }
 
-func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePriceInput) {
-	reserves, err := lp.uniswapV2Pair.GetReserves(&bind.CallOpts{})
+// CalculateEffectivePrice requires PoolID, token decimals and AmountIn
+func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePriceInput) (*dex.EffectivePrice, error) {
+	// todo: pass pool
+	uniswapV2Pair, err := NewUniswapV2Pair(common.HexToAddress(inp.PoolID), lp.client)
 	if err != nil {
-		return
+		return nil, err
+	}
+
+	reserves, err := uniswapV2Pair.GetReserves(&bind.CallOpts{})
+	if err != nil {
+		return nil, err
 	}
 
 	inp.TokenInReserve, inp.TokenOutReserve = reserves.Reserve0, reserves.Reserve1
 
-	effectivePrice1, err := lp.calculateEffectivePrice(inp)
+	effectivePrice0, err := lp.calculateEffectivePrice(inp)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	inp.TokenInReserve, inp.TokenOutReserve = reserves.Reserve1, reserves.Reserve0
 	inp.TokenInDecimals, inp.TokenOutDecimals = inp.TokenOutDecimals, inp.TokenInDecimals
 
-	effectivePrice2, err := lp.calculateEffectivePrice(inp)
+	effectivePrice1, err := lp.calculateEffectivePrice(inp)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	fmt.Println(inp.PoolName)
+	fmt.Println("effective price 0:", effectivePrice0)
 	fmt.Println("effective price 1:", effectivePrice1)
-	fmt.Println("effective price 2:", effectivePrice2)
+
+	return &dex.EffectivePrice{
+		DexID:           dex.UNISWAP_V2,
+		PoolID:          inp.PoolID,
+		EffectivePrice0: effectivePrice0,
+		EffectivePrice1: effectivePrice1,
+		Timestamp:       time.Now(),
+	}, nil
 }
 
 func (lp LiquidityPoolParser) calculateEffectivePrice(inp CalculateEffectivePriceInput) (*big.Float, error) {

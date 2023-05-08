@@ -1,47 +1,40 @@
 package dex
 
-import (
-	"math/big"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/zhashkevych/trinity/pkg/web3"
-)
-
 // TODO: store smart contract addresses in JSON config and parse into global config
 
-type PoolPair struct {
-	Pair             string
-	Addr             common.Address
-	TokenOne         web3.Cryptocurrency
-	TokenTwo         web3.Cryptocurrency
-	TokenOneAddr     common.Address
-	TokenTwoAddr     common.Address
-	TokenOneAmountIn *big.Int
-	TokenTwoAmountIn *big.Int
-	Fee              *big.Int
+type DEX string
+
+const (
+	UNISWAP_V2 DEX = "uniswap v2"
+	UNISWAP_V3 DEX = "uniswap v3"
+	SUSHISWAP  DEX = "sushi swap"
+)
+
+type Token struct {
+	Symbol     string `json:"symbol"`
+	ID         string `json:"id"`
+	DerivedETH string `json:"derivedETH"`
+	Decimals   string `json:"decimals"`
 }
 
-// var PoolsV3 = map[string]Pool{
-// 	"USDC / ETH": {
-// 		Pair:         "USDC / ETH",
-// 		Addr:         common.HexToAddress("0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640"),
-// 		TokenOneAddr: TokensV3[ETHEREUM][USDC],
-// 		TokenTwoAddr: TokensV3[ETHEREUM][ETH],
-// 		Fee:          big.NewInt(500), // 0.05%
-// 	},
-// 	"WBTC / ETH": {
-// 		Pair:         "WBTC / ETH",
-// 		Addr:         common.HexToAddress("0xcbcdf9626bc03e24f779434178a73a0b4bad62ed"),
-// 		TokenOneAddr: TokensV3[ETHEREUM][WBTC],
-// 		TokenTwoAddr: TokensV3[ETHEREUM][ETH],
-// 		Fee:          big.NewInt(300), // 0.03%
-// 	},
-// }
+type PoolPair struct {
+	DexID               DEX
+	ID                  string  `json:"id"`
+	Token0              Token   `json:"token0"`
+	Token1              Token   `json:"token1"`
+	Liquidity           string  `json:"liquidity"`
+	SqrtPrice           string  `json:"sqrtPrice"`
+	TotalValueLockedUSD string  `json:"totalValueLockedUSD"`
+	Reserve0            float64 `json:"reserve0"`
+	Reserve1            float64 `json:"reserve1"`
+	Reserve0USD         float64 `json:"reserve0USD"`
+	Reserve1USD         float64 `json:"reserve1USD"`
+	TradeAmount0        float64 `json:"tradeAmount0"`
+	TradeAmount1        float64 `json:"tradeAmount1"`
+	FeeTier             string  `json:"feeTier"`
+}
 
-// var TokensV3 = map[string]map[string]common.Address{
-// 	ETHEREUM: {
-// 		USDC: common.HexToAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"), // Token address for specific dex / pool ? Or general ?
-// 		ETH:  common.HexToAddress("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"),
-// 		WBTC: common.HexToAddress("0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"),
-// 	},
-// }
+type Reserves struct {
+	Reserve0 string `json:"reserve0"`
+	Reserve1 string `json:"reserve1"`
+}
