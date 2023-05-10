@@ -73,8 +73,8 @@ func main() {
 		uniswapV3Pools[i].DexID = dex.UNISWAP_V3
 	}
 
-	fmt.Println(len(uniswapV2Pools))
-	fmt.Println(len(uniswapV3Pools))
+	// fmt.Println(len(uniswapV2Pools))
+	// fmt.Println(len(uniswapV3Pools))
 
 	// for _, pool := range uniswapV3Pools {
 	// 	fmt.Printf("%+v\n", pool)
@@ -122,8 +122,8 @@ func main() {
 
 	pools := make([]*dex.PoolPair, 0)
 
-	pools = append(pools, uniswapV2Pools...)
-	pools = append(pools, uniswapV3Pools...)
+	pools = append(pools, uniswapV2Pools[0:50]...)
+	// pools = append(pools, uniswapV3Pools...)
 
 	p := processor.NewDexPoolProcessor(uniswapV2Parser, uniswapV3Parser)
 	p.StartProcessing(pools)

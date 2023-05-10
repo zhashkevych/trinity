@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/zhashkevych/trinity/internal/dex"
@@ -36,32 +37,45 @@ func NewDexPoolProcessor(uniV2Client UniV2Parser, uniV3Client UniV3Parser) *DexP
 }
 
 func (p *DexPoolProcessor) StartProcessing(pools []*dex.PoolPair) {
+	fmt.Println(len(pools))
+
+	ts := time.Now()
+
 	wg := &sync.WaitGroup{}
-	effectivePriceCh := make(chan *dex.EffectivePrice)
+	wg.Add(len(pools))
+
+	effectivePriceCh := make(chan *dex.EffectivePrice, len(pools))
 
 	// calculate effective price for each pool
+	effectivePrices := make([]*dex.EffectivePrice, len(pools))
+
+	// Start a goroutine to receive data
+	receiveWg := &sync.WaitGroup{}
+	receiveWg.Add(1)
+	go func() {
+		defer receiveWg.Done()
+		counter := 0
+		for p := range effectivePriceCh {
+			effectivePrices[counter] = p
+			counter++
+		}
+	}()
 
 	for _, pool := range pools {
-		wg.Add(1)
 		go p.calculateEffectivePrice(wg, effectivePriceCh, pool)
 	}
 
-	// Aggregate data
-
+	// Wait for all calculateEffectivePrice goroutines to finish
 	wg.Wait()
-
-	effectivePrices := make([]*dex.EffectivePrice, len(pools))
-	counter := 0
-
-	for p := range effectivePriceCh {
-		effectivePrices[counter] = p
-		counter++
-	}
-
+	// Now we can safely close the channel
 	close(effectivePriceCh)
 
-	// Send to "Arbitrage Opportunity Finder"
+	// Wait for the receiving goroutine to finish
+	receiveWg.Wait()
 
+	fmt.Println("time spent:", time.Since(ts))
+
+	// Send to "Arbitrage Opportunity Finder"
 	fmt.Println("sending effective prices to opportunity finder")
 	fmt.Println("first pair:", effectivePrices[0])
 }

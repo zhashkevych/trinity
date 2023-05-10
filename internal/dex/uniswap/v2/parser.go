@@ -6,7 +6,6 @@ package v2
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -75,9 +74,9 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePric
 		return nil, err
 	}
 
-	fmt.Println(inp.PoolName)
-	fmt.Println("effective price 0:", effectivePrice0)
-	fmt.Println("effective price 1:", effectivePrice1)
+	// fmt.Println("V2, PoolID", inp.PoolID)
+	// fmt.Println("v2 effective price 0:", effectivePrice0)
+	// fmt.Println("effective price 1:", effectivePrice1)
 
 	return &dex.EffectivePrice{
 		DexID:           dex.UNISWAP_V2,

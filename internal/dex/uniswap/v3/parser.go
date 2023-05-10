@@ -63,6 +63,10 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePric
 		return nil, err
 	}
 
+	// fmt.Println("V3, PoolID ", inp.PoolID)
+	// fmt.Println("effective price 0:", effectivePrice0)
+	// fmt.Println("effective price 1:", effectivePrice1)
+
 	return &dex.EffectivePrice{
 		DexID:           dex.UNISWAP_V3,
 		PoolID:          inp.PoolID,
