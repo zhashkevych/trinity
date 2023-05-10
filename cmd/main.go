@@ -122,7 +122,7 @@ func main() {
 
 	pools := make([]*dex.PoolPair, 0)
 
-	pools = append(pools, uniswapV2Pools[0:50]...)
+	pools = append(pools, uniswapV2Pools[0:100]...)
 	// pools = append(pools, uniswapV3Pools...)
 
 	p := processor.NewDexPoolProcessor(uniswapV2Parser, uniswapV3Parser)

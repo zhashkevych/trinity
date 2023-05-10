@@ -77,7 +77,10 @@ func (p *DexPoolProcessor) StartProcessing(pools []*dex.PoolPair) {
 
 	// Send to "Arbitrage Opportunity Finder"
 	fmt.Println("sending effective prices to opportunity finder")
-	fmt.Println("first pair:", effectivePrices[0])
+
+	for i, p := range effectivePrices {
+		fmt.Printf("%d. %+v\n", i+1, p)
+	}
 }
 
 // todo handle errors
@@ -111,6 +114,7 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 		})
 		if err != nil {
 			// todo
+			fmt.Printf("UNI v2: error calculating effective price for %s: %s\n", pool.ID, err)
 		}
 
 		effectivePriceCh <- effectivePrice
