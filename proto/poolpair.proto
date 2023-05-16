@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package models;
+
+option go_package = "github.com/zhashkevych/trinity/internal/models";
+
+enum DEX {
+    UNISWAP_V2 = 0;
+    UNISWAP_V3 = 1;
+    SUSHISWAP = 2;
+}
+
+message Token {
+    string symbol = 1;
+    string id = 2;
+    string derived_eth = 3;
+    string decimals = 4;
+}
+
+message PoolPair {
+    DEX dex_id = 1;
+    string id = 2;
+    Token token0 = 3;
+    Token token1 = 4;
+    string liquidity = 5;
+    string sqrt_price = 6;
+    string total_value_locked_usd = 7;
+    double reserve0 = 8;
+    double reserve1 = 9;
+    double reserve0_usd = 10;
+    double reserve1_usd = 11;
+    double trade_amount0 = 12;
+    double trade_amount1 = 13;
+    string fee_tier = 14;
+    string effective_price0 = 15;  // big.Float can't be directly represented in protobuf. You might want to convert it to string or a suitable numerical type
+    string effective_price1 = 16;  // big.Float can't be directly represented in protobuf. You might want to convert it to string or a suitable numerical type
+}
+
+message PoolPairList {
+    repeated PoolPair pool_pairs = 1;
+}

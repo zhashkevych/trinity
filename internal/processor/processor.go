@@ -44,10 +44,10 @@ func (p *DexPoolProcessor) StartProcessing(pools []*dex.PoolPair) {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(pools))
 
-	effectivePriceCh := make(chan *dex.EffectivePrice, len(pools))
+	calculatedPoolPricesCh := make(chan *dex.PoolPair, len(pools))
 
 	// calculate effective price for each pool
-	effectivePrices := make([]*dex.EffectivePrice, len(pools))
+	calculatedPoolPrices := make([]*dex.PoolPair, len(pools))
 
 	// Start a goroutine to receive data
 	receiveWg := &sync.WaitGroup{}
@@ -55,36 +55,36 @@ func (p *DexPoolProcessor) StartProcessing(pools []*dex.PoolPair) {
 	go func() {
 		defer receiveWg.Done()
 		counter := 0
-		for p := range effectivePriceCh {
-			effectivePrices[counter] = p
+		for p := range calculatedPoolPricesCh {
+			calculatedPoolPrices[counter] = p
 			counter++
 		}
 	}()
 
 	for _, pool := range pools {
-		go p.calculateEffectivePrice(wg, effectivePriceCh, pool)
+		go p.calculateEffectivePrice(wg, calculatedPoolPricesCh, pool)
 	}
 
 	// Wait for all calculateEffectivePrice goroutines to finish
 	wg.Wait()
 	// Now we can safely close the channel
-	close(effectivePriceCh)
+	close(calculatedPoolPricesCh)
 
 	// Wait for the receiving goroutine to finish
 	receiveWg.Wait()
 
 	fmt.Println("time spent:", time.Since(ts))
 
-	// Send to "Arbitrage Opportunity Finder"
-	fmt.Println("sending effective prices to opportunity finder")
+	// Send to "Arbitrage Opportunity Finder" via Message Queue
+	fmt.Println("sending effective prices to message queue")
 
-	for i, p := range effectivePrices {
+	for i, p := range calculatedPoolPrices {
 		fmt.Printf("%d. %+v\n", i+1, p)
 	}
 }
 
 // todo handle errors
-func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effectivePriceCh chan<- *dex.EffectivePrice, pool *dex.PoolPair) {
+func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effectivePriceCh chan<- *dex.PoolPair, pool *dex.PoolPair) {
 	defer wg.Done()
 
 	tokenInDecimals, err := strconv.Atoi(pool.Token0.Decimals)
@@ -117,7 +117,10 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 			fmt.Printf("UNI v2: error calculating effective price for %s: %s\n", pool.ID, err)
 		}
 
-		effectivePriceCh <- effectivePrice
+		pool.EffectivePrice0 = effectivePrice.EffectivePrice0
+		pool.EffectivePrice1 = effectivePrice.EffectivePrice1
+
+		effectivePriceCh <- pool
 	case dex.UNISWAP_V3:
 		effectivePrice, err := p.uniV3Client.CalculateEffectivePrice(v3.CalculateEffectivePriceInput{
 			PoolID:           pool.ID,
@@ -133,7 +136,10 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 			// todo
 		}
 
-		effectivePriceCh <- effectivePrice
+		pool.EffectivePrice0 = effectivePrice.EffectivePrice0
+		pool.EffectivePrice1 = effectivePrice.EffectivePrice1
+
+		effectivePriceCh <- pool
 	case dex.SUSHISWAP:
 		// todo: pass trade amount
 		effectivePrice, err := p.uniV2Client.CalculateEffectivePrice(v2.CalculateEffectivePriceInput{
@@ -147,7 +153,10 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 			// todo
 		}
 
-		effectivePriceCh <- effectivePrice
+		pool.EffectivePrice0 = effectivePrice.EffectivePrice0
+		pool.EffectivePrice1 = effectivePrice.EffectivePrice1
+
+		effectivePriceCh <- pool
 	default:
 		fmt.Println("Unknown DEX")
 	}

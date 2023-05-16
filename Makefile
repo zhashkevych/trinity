@@ -1,7 +1,7 @@
 .PHONY:
 
 gen-proto:
-	protoc --proto_path=proto --go_out=internal/models --go_opt=paths=source_relative pooldata.proto
+	protoc --proto_path=proto --go_out=internal/models --go_opt=paths=source_relative poolpair.proto
 
 gen-abi:
 	abigen --abi ./abi/UniswapV3/UniswapV3Factory.json --pkg v3 --type UniswapV3Factory --out internal/dex/uniswap/v3/UniswapV3Factory_abi.go

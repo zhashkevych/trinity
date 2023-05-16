@@ -1,5 +1,7 @@
 package dex
 
+import "math/big"
+
 // TODO: store smart contract addresses in JSON config and parse into global config
 
 type DEX string
@@ -32,6 +34,10 @@ type PoolPair struct {
 	TradeAmount0        float64 `json:"tradeAmount0"`
 	TradeAmount1        float64 `json:"tradeAmount1"`
 	FeeTier             string  `json:"feeTier"`
+
+	// Calculated inside the app
+	EffectivePrice0 *big.Float
+	EffectivePrice1 *big.Float
 }
 
 type Reserves struct {
