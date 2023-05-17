@@ -8,9 +8,12 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/nats-io/nats.go"
 	"github.com/zhashkevych/trinity/internal/dex"
 	v2 "github.com/zhashkevych/trinity/internal/dex/uniswap/v2"
 	v3 "github.com/zhashkevych/trinity/internal/dex/uniswap/v3"
+	"github.com/zhashkevych/trinity/internal/models"
+	"google.golang.org/protobuf/proto"
 )
 
 /*
@@ -18,6 +21,9 @@ import (
 	When all pools are parsed, the data is aggregated to single array of all effective prices.
 	Then it shoud be transported to the module, that searches for arbitrage opportunities.
 */
+
+// TODO: troubleshoot, alchemy accounts pool, error handling, retries, proper logging
+// Prometeus / DB for metrics
 
 type UniV2Parser interface {
 	CalculateEffectivePrice(inp v2.CalculateEffectivePriceInput) (*dex.EffectivePrice, error)
@@ -30,10 +36,12 @@ type UniV3Parser interface {
 type DexPoolProcessor struct {
 	uniV2Client UniV2Parser
 	uniV3Client UniV3Parser
+
+	mq *nats.Conn // move to separate transport layer
 }
 
-func NewDexPoolProcessor(uniV2Client UniV2Parser, uniV3Client UniV3Parser) *DexPoolProcessor {
-	return &DexPoolProcessor{uniV2Client, uniV3Client}
+func NewDexPoolProcessor(uniV2Client UniV2Parser, uniV3Client UniV3Parser, mq *nats.Conn) *DexPoolProcessor {
+	return &DexPoolProcessor{uniV2Client, uniV3Client, mq}
 }
 
 func (p *DexPoolProcessor) StartProcessing(pools []*dex.PoolPair) {
@@ -76,7 +84,21 @@ func (p *DexPoolProcessor) StartProcessing(pools []*dex.PoolPair) {
 	fmt.Println("time spent:", time.Since(ts))
 
 	// Send to "Arbitrage Opportunity Finder" via Message Queue
-	fmt.Println("sending effective prices to message queue")
+	// 1. Convert to Protobuf
+	poolPairs := toProtoModel(calculatedPoolPrices)
+	data, err := proto.Marshal(poolPairs)
+	if err != nil {
+		fmt.Printf("error marshaling data:%s\n", err)
+		return
+	}
+
+	// 2. Send to NATS
+	if err := p.mq.Publish("calculated-prices", data); err != nil {
+		fmt.Printf("error sending data to mq:%s\n", err)
+		return
+	}
+
+	fmt.Println("sent effective prices to message queue !!!")
 
 	for i, p := range calculatedPoolPrices {
 		fmt.Printf("%d. %+v\n", i+1, p)
@@ -117,8 +139,10 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 			fmt.Printf("UNI v2: error calculating effective price for %s: %s\n", pool.ID, err)
 		}
 
-		pool.EffectivePrice0 = effectivePrice.EffectivePrice0
-		pool.EffectivePrice1 = effectivePrice.EffectivePrice1
+		if effectivePrice != nil {
+			pool.EffectivePrice0 = effectivePrice.EffectivePrice0
+			pool.EffectivePrice1 = effectivePrice.EffectivePrice1
+		}
 
 		effectivePriceCh <- pool
 	case dex.UNISWAP_V3:
@@ -136,8 +160,10 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 			// todo
 		}
 
-		pool.EffectivePrice0 = effectivePrice.EffectivePrice0
-		pool.EffectivePrice1 = effectivePrice.EffectivePrice1
+		if effectivePrice != nil {
+			pool.EffectivePrice0 = effectivePrice.EffectivePrice0
+			pool.EffectivePrice1 = effectivePrice.EffectivePrice1
+		}
 
 		effectivePriceCh <- pool
 	case dex.SUSHISWAP:
@@ -153,11 +179,63 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 			// todo
 		}
 
-		pool.EffectivePrice0 = effectivePrice.EffectivePrice0
-		pool.EffectivePrice1 = effectivePrice.EffectivePrice1
+		if effectivePrice != nil {
+			pool.EffectivePrice0 = effectivePrice.EffectivePrice0
+			pool.EffectivePrice1 = effectivePrice.EffectivePrice1
+		}
 
 		effectivePriceCh <- pool
 	default:
 		fmt.Println("Unknown DEX")
 	}
+}
+
+func toProtoModel(poolPairs []*dex.PoolPair) *models.PoolPairList {
+	pairs := make([]*models.PoolPair, 0)
+
+	for _, pair := range poolPairs {
+		if pair == nil {
+			continue
+		}
+		pairs = append(pairs, toProtoPoolPair(pair))
+	}
+
+	return &models.PoolPairList{
+		PoolPairs: pairs,
+	}
+}
+
+func toProtoPoolPair(p *dex.PoolPair) *models.PoolPair {
+	out := &models.PoolPair{
+		DexId: p.DexID.GetProto(),
+		Id:    p.ID,
+		Token0: &models.Token{
+			Id:         p.Token0.ID,
+			Symbol:     p.Token0.Symbol,
+			DerivedEth: p.Token0.DerivedETH,
+			Decimals:   p.Token0.Decimals,
+		},
+		Token1: &models.Token{
+			Id:         p.Token1.ID,
+			Symbol:     p.Token1.Symbol,
+			DerivedEth: p.Token1.DerivedETH,
+			Decimals:   p.Token1.Decimals,
+		},
+		Reserve0:     p.Reserve0,
+		Reserve1:     p.Reserve1,
+		Reserve0Usd:  p.Reserve0USD,
+		Reserve1Usd:  p.Reserve1USD,
+		TradeAmount0: p.TradeAmount0,
+		TradeAmount1: p.TradeAmount1,
+	}
+
+	if p.EffectivePrice0 != nil {
+		out.EffectivePrice0 = p.EffectivePrice0.String()
+	}
+
+	if p.EffectivePrice1 != nil {
+		out.EffectivePrice1 = p.EffectivePrice1.String()
+	}
+
+	return out
 }

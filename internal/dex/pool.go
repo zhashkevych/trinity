@@ -1,6 +1,10 @@
 package dex
 
-import "math/big"
+import (
+	"math/big"
+
+	"github.com/zhashkevych/trinity/internal/models"
+)
 
 // TODO: store smart contract addresses in JSON config and parse into global config
 
@@ -11,6 +15,19 @@ const (
 	UNISWAP_V3 DEX = "uniswap v3"
 	SUSHISWAP  DEX = "sushi swap"
 )
+
+func (d DEX) GetProto() models.DEX {
+	switch d {
+	case UNISWAP_V2:
+		return models.DEX_UNISWAP_V2
+	case UNISWAP_V3:
+		return models.DEX_UNISWAP_V3
+	case SUSHISWAP:
+		return models.DEX_SUSHISWAP
+	default:
+		return -1
+	}
+}
 
 type Token struct {
 	Symbol     string `json:"symbol"`

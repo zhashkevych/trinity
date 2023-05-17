@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
+	"github.com/nats-io/nats.go"
 	"github.com/zhashkevych/trinity/internal/dex"
 	v2 "github.com/zhashkevych/trinity/internal/dex/uniswap/v2"
 	v3 "github.com/zhashkevych/trinity/internal/dex/uniswap/v3"
@@ -38,6 +39,13 @@ func main() {
 		return
 	}
 	defer client.Close()
+
+	// Connect to NATS MQ
+	nc, err := nats.Connect(nats.DefaultURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer nc.Close()
 
 	file, err := ioutil.ReadFile("pools/uniswapV2_Pools.json")
 	if err != nil {
@@ -125,8 +133,17 @@ func main() {
 	pools = append(pools, uniswapV2Pools[0:100]...)
 	// pools = append(pools, uniswapV3Pools...)
 
-	p := processor.NewDexPoolProcessor(uniswapV2Parser, uniswapV3Parser)
+	p := processor.NewDexPoolProcessor(uniswapV2Parser, uniswapV3Parser, nc)
 	p.StartProcessing(pools)
+
+	// Make sure the data is sent before we close the connection
+	nc.Flush()
+
+	if err := nc.LastError(); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("DONE!")
 
 	// uniswapV2Parser.CalculateEffectivePrice(v2.CalculateEffectivePriceInput{
 	// 	PoolName:         "USDC / ETH",
