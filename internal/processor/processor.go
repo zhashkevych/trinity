@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/nats-io/nats.go"
 	"github.com/zhashkevych/trinity/internal/dex"
@@ -16,14 +18,15 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const (
+	NATS_SUBJECT = "calculated-prices"
+)
+
 /*
 	Processor should go through the list of all DEX pools and calculate effective price for each of them.
 	When all pools are parsed, the data is aggregated to single array of all effective prices.
 	Then it shoud be transported to the module, that searches for arbitrage opportunities.
 */
-
-// TODO: troubleshoot, alchemy accounts pool, error handling, retries, proper logging
-// Prometeus / DB for metrics
 
 type UniV2Parser interface {
 	CalculateEffectivePrice(inp v2.CalculateEffectivePriceInput) (*dex.EffectivePrice, error)
@@ -81,34 +84,34 @@ func (p *DexPoolProcessor) StartProcessing(pools []*dex.PoolPair) {
 	// Wait for the receiving goroutine to finish
 	receiveWg.Wait()
 
-	fmt.Println("time spent:", time.Since(ts))
+	log.WithFields(log.Fields{
+		"source": "processor.go",
+	}).Info("time spent:", time.Since(ts))
 
 	// Send to "Arbitrage Opportunity Finder" via Message Queue
 	// 1. Convert to Protobuf
 	poolPairs := toProtoModel(calculatedPoolPrices)
 	data, err := proto.Marshal(poolPairs)
 	if err != nil {
-		fmt.Printf("error marshaling data:%s\n", err)
+		log.WithFields(log.Fields{
+			"source": "processor.go",
+		}).Error("failed to marshal proto data:", err)
+
 		return
 	}
 
 	// 2. Send to NATS
-	if err := p.mq.Publish("calculated-prices", data); err != nil {
-		fmt.Printf("error sending data to mq:%s\n", err)
+	if err := p.mq.Publish(NATS_SUBJECT, data); err != nil {
+		log.WithFields(log.Fields{
+			"source": "processor.go",
+		}).Error("failed to sent proto data to NATS:", err)
+
 		return
 	}
 
-	fmt.Println("sent effective prices to message queue !!!")
-
-	nilCount := 0
-	for _, p := range calculatedPoolPrices {
-		if p == nil {
-			nilCount++
-		}
-	}
-
-	fmt.Println("total calculatedPoolPrices: ", len(calculatedPoolPrices))
-	fmt.Println("nil calculatedPoolPrices items: ", nilCount)
+	log.WithFields(log.Fields{
+		"source": "processor.go",
+	}).Info("sent effective prices to NATS")
 }
 
 // todo handle errors
@@ -117,17 +120,26 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 
 	tokenInDecimals, err := strconv.Atoi(pool.Token0.Decimals)
 	if err != nil {
-		// todo
+		log.WithFields(log.Fields{
+			"source": "processor.go",
+			"method": "calculateEffectivePrice",
+			"poolID": pool.ID,
+			"dex":    pool.DexID,
+		}).Error("failed to convert token0.Decimals to int:", err)
+
+		return
 	}
 
 	tokenOutDecimals, err := strconv.Atoi(pool.Token1.Decimals)
 	if err != nil {
-		// todo
-	}
+		log.WithFields(log.Fields{
+			"source": "processor.go",
+			"method": "calculateEffectivePrice",
+			"poolID": pool.ID,
+			"dex":    pool.DexID,
+		}).Error("failed to convert token1.Decimals to int:", err)
 
-	feeI, err := strconv.Atoi(pool.FeeTier)
-	if err != nil {
-		// todo
+		return
 	}
 
 	switch pool.DexID {
@@ -141,8 +153,12 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 			TradeAmount1:     big.NewFloat(pool.TradeAmount1),
 		})
 		if err != nil {
-			// todo
-			fmt.Printf("UNI v2: error calculating effective price for %s: %s\n", pool.ID, err)
+			log.WithFields(log.Fields{
+				"source": "processor.go",
+				"method": "calculateEffectivePrice",
+				"poolID": pool.ID,
+				"dex":    pool.DexID,
+			}).Error("failed to calculate effective price:", err)
 		}
 
 		if effectivePrice != nil {
@@ -152,6 +168,18 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 
 		effectivePriceCh <- pool
 	case dex.UNISWAP_V3:
+		feeI, err := strconv.Atoi(pool.FeeTier)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"source": "processor.go",
+				"method": "calculateEffectivePrice",
+				"poolID": pool.ID,
+				"dex":    pool.DexID,
+			}).Error("failed to convert feeTier to int:", err)
+
+			return
+		}
+
 		effectivePrice, err := p.uniV3Client.CalculateEffectivePrice(v3.CalculateEffectivePriceInput{
 			PoolID:           pool.ID,
 			TokenInAddr:      common.HexToAddress(pool.Token0.ID),
@@ -163,8 +191,12 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 			Fee:              big.NewInt(int64(feeI)),
 		})
 		if err != nil {
-			// todo
-			fmt.Printf("UNI v3: error calculating effective price for %s: %s\n", pool.ID, err)
+			log.WithFields(log.Fields{
+				"source": "processor.go",
+				"method": "calculateEffectivePrice",
+				"poolID": pool.ID,
+				"dex":    pool.DexID,
+			}).Error("failed to calculate effective price:", err)
 		}
 
 		if effectivePrice != nil {
@@ -174,7 +206,6 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 
 		effectivePriceCh <- pool
 	case dex.SUSHISWAP:
-		// todo: pass trade amount
 		effectivePrice, err := p.uniV2Client.CalculateEffectivePrice(v2.CalculateEffectivePriceInput{
 			PoolID:           pool.ID,
 			TokenInDecimals:  int64(tokenInDecimals),
@@ -183,7 +214,12 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 			TradeAmount1:     big.NewFloat(pool.TradeAmount1),
 		})
 		if err != nil {
-			// todo
+			log.WithFields(log.Fields{
+				"source": "processor.go",
+				"method": "calculateEffectivePrice",
+				"poolID": pool.ID,
+				"dex":    pool.DexID,
+			}).Error("failed to calculate effective price:", err)
 		}
 
 		if effectivePrice != nil {
@@ -193,7 +229,6 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 
 		effectivePriceCh <- pool
 	default:
-		fmt.Println("Unknown DEX")
 	}
 }
 

@@ -2,9 +2,10 @@ package v3
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -40,30 +41,30 @@ type CalculateEffectivePriceInput struct {
 }
 
 func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePriceInput) (*dex.EffectivePrice, error) {
-	// tradeAmount0, _ := inp.TradeAmount0.Int64()
-	// inp.amountIn = big.NewInt(tradeAmount0)
 	inp.amountIn = inp.TradeAmount0
 
 	effectivePrice0, err := lp.calculateEffectivePrice(inp)
 	if err != nil {
+		log.WithFields(log.Fields{
+			"source": "uniswap/v3/parser.go",
+		}).Error("failed to calculate effective price 0", err)
+
 		return nil, err
 	}
 
 	// reverse
 	inp.TokenInAddr, inp.TokenOutAddr = inp.TokenOutAddr, inp.TokenInAddr
 	inp.TokenInDecimals, inp.TokenOutDecimals = inp.TokenOutDecimals, inp.TokenInDecimals
-	// tradeAmount1, _ := inp.TradeAmount1.Int64()
-	// inp.amountIn = big.NewInt(tradeAmount1)
 	inp.amountIn = inp.TradeAmount1
 
 	effectivePrice1, err := lp.calculateEffectivePrice(inp)
 	if err != nil {
+		log.WithFields(log.Fields{
+			"source": "uniswap/v3/parser.go",
+		}).Error("failed to calculate effective price 1", err)
+
 		return nil, err
 	}
-
-	// fmt.Println("V3, PoolID ", inp.PoolID)
-	// fmt.Println("effective price 0:", effectivePrice0)
-	// fmt.Println("effective price 1:", effectivePrice1)
 
 	return &dex.EffectivePrice{
 		DexID:           dex.UNISWAP_V3,
@@ -86,7 +87,6 @@ func (lp LiquidityPoolParser) calculateEffectivePrice(inp CalculateEffectivePric
 	}
 
 	amountIn := web3.ToTokenUnitsF(inp.amountIn, inp.TokenInDecimals)
-	// amountInF := big.NewFloat(0).SetInt(amountIn)
 
 	res := make([]interface{}, 0)
 	amountInI, _ := amountIn.Int(nil)
@@ -102,7 +102,6 @@ func (lp LiquidityPoolParser) calculateEffectivePrice(inp CalculateEffectivePric
 			SqrtPriceLimitX96: big.NewInt(0),
 		})
 	if err != nil {
-		fmt.Println("quoterv2 err: ", err)
 		return nil, err
 	}
 

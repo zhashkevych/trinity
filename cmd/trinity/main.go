@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strconv"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
@@ -20,23 +21,28 @@ import (
 
 /*
 TODO:
-- Parse pools from JSON
-- Implement SushiSwap
-- Implement async processing
+- Implement proper logging
+- Implement graceful shutdown
 */
 
 func main() {
+	log.SetFormatter(&log.JSONFormatter{})
+
 	// Load .env file
 	err := godotenv.Load()
 	if err != nil {
-		fmt.Println("Error loading .env file")
+		log.WithFields(log.Fields{
+			"source": "main.go",
+		}).Error("failed to load env file", err)
 		return
 	}
 
 	// Init client pool
 	urls, err := getAlchemyURLs()
 	if err != nil {
-		fmt.Println("Error parsing Alchemy URLs")
+		log.WithFields(log.Fields{
+			"source": "main.go",
+		}).Error("failed to load alchemy urls", err)
 		return
 	}
 
@@ -45,7 +51,9 @@ func main() {
 	for i, url := range urls {
 		client, err := ethclient.Dial(url)
 		if err != nil {
-			fmt.Println("Error connecting to Ethereum")
+			log.WithFields(log.Fields{
+				"source": "main.go",
+			}).Error("failed to init eth client with url", url)
 			return
 		}
 		defer client.Close()
@@ -62,20 +70,27 @@ func main() {
 	// Connect to NATS MQ
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
-		log.Fatal(err)
+		log.WithFields(log.Fields{
+			"source": "main.go",
+		}).Error("failed to connect to nats", err)
+		return
 	}
 	defer nc.Close()
 
 	file, err := ioutil.ReadFile("pools/uniswapV2_Pools.json")
 	if err != nil {
-		fmt.Println("Error reading JSON file:", err)
+		log.WithFields(log.Fields{
+			"source": "main.go",
+		}).Error("failed to read uniswap v2 json", err)
 		return
 	}
 
 	uniswapV2Pools := make([]*dex.PoolPair, 0)
 	err = json.Unmarshal(file, &uniswapV2Pools)
 	if err != nil {
-		fmt.Println("Error unmarshaling V2 JSON data:", err)
+		log.WithFields(log.Fields{
+			"source": "main.go",
+		}).Error("failed to unmarshal uniswap v2 json", err)
 		return
 	}
 
@@ -85,27 +100,24 @@ func main() {
 
 	file, err = ioutil.ReadFile("pools/uniswapV3_Pools.json")
 	if err != nil {
-		fmt.Println("Error reading JSON file:", err)
+		log.WithFields(log.Fields{
+			"source": "main.go",
+		}).Error("failed to read uniswap v3 json", err)
 		return
 	}
 
 	uniswapV3Pools := make([]*dex.PoolPair, 0)
 	err = json.Unmarshal(file, &uniswapV3Pools)
 	if err != nil {
-		fmt.Println("Error unmarshaling V3 JSON data:", err)
+		log.WithFields(log.Fields{
+			"source": "main.go",
+		}).Error("failed to unmarshal uniswap v3 json", err)
 		return
 	}
 
 	for i := range uniswapV3Pools {
 		uniswapV3Pools[i].DexID = dex.UNISWAP_V3
 	}
-
-	// fmt.Println(len(uniswapV2Pools))
-	// fmt.Println(len(uniswapV3Pools))
-
-	// for _, pool := range uniswapV3Pools {
-	// 	fmt.Printf("%+v\n", pool)
-	// }
 
 	uniswapV3Parser := v3.NewLiquidityPoolParser(clientPool)
 	uniswapV2Parser := v2.NewLiquidityPoolParser(clientPool)
@@ -122,7 +134,9 @@ func main() {
 	nc.Flush()
 
 	if err := nc.LastError(); err != nil {
-		log.Fatal(err)
+		log.WithFields(log.Fields{
+			"source": "main.go",
+		}).Error("NATS error", err)
 	}
 
 	fmt.Println("DONE!")

@@ -9,6 +9,8 @@ import (
 	"math/big"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -31,13 +33,10 @@ func NewLiquidityPoolParser(pool ClientPool) *LiquidityPoolParser {
 
 // TODO: maybe move to shared lib
 type CalculateEffectivePriceInput struct {
-	PoolName string
-	PoolID   string
-	// TokenInReserve   *big.Int
-	// TokenOutReserve  *big.Int
+	PoolName         string
+	PoolID           string
 	TokenInDecimals  int64
 	TokenOutDecimals int64
-	// AmountIn         *big.Int
 
 	TradeAmount0 *big.Float
 	TradeAmount1 *big.Float
@@ -48,16 +47,28 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePric
 	// todo: pass pool
 	client, err := lp.clientPool.GetClient()
 	if err != nil {
+		log.WithFields(log.Fields{
+			"source": "uniswap/v2/parser.go",
+		}).Error("failed to get client from client pool", err)
+
 		return nil, err
 	}
 
 	uniswapV2Pair, err := NewUniswapV2Pair(common.HexToAddress(inp.PoolID), client)
 	if err != nil {
+		log.WithFields(log.Fields{
+			"source": "uniswap/v2/parser.go",
+		}).Error("failed to init uniswapv2 pair client", err)
+
 		return nil, err
 	}
 
 	reserves, err := uniswapV2Pair.GetReserves(&bind.CallOpts{})
 	if err != nil {
+		log.WithFields(log.Fields{
+			"source": "uniswap/v2/parser.go",
+		}).Error("failed to get reserves via uniswapv2 pair client", err)
+
 		return nil, err
 	}
 
@@ -71,6 +82,10 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePric
 
 	effectivePrice0, err := lp.calculateEffectivePrice(calcPriceInp)
 	if err != nil {
+		log.WithFields(log.Fields{
+			"source": "uniswap/v2/parser.go",
+		}).Error("failed to calculate effective price 0", err)
+
 		return nil, err
 	}
 
@@ -80,12 +95,12 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePric
 
 	effectivePrice1, err := lp.calculateEffectivePrice(calcPriceInp)
 	if err != nil {
+		log.WithFields(log.Fields{
+			"source": "uniswap/v2/parser.go",
+		}).Error("failed to calculate effective price 1", err)
+
 		return nil, err
 	}
-
-	// fmt.Println("V2, PoolID", inp.PoolID)
-	// fmt.Println("v2 effective price 0:", effectivePrice0)
-	// fmt.Println("effective price 1:", effectivePrice1)
 
 	return &dex.EffectivePrice{
 		DexID:           dex.UNISWAP_V2,
