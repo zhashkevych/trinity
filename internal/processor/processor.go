@@ -100,9 +100,15 @@ func (p *DexPoolProcessor) StartProcessing(pools []*dex.PoolPair) {
 
 	fmt.Println("sent effective prices to message queue !!!")
 
-	for i, p := range calculatedPoolPrices {
-		fmt.Printf("%d. %+v\n", i+1, p)
+	nilCount := 0
+	for _, p := range calculatedPoolPrices {
+		if p == nil {
+			nilCount++
+		}
 	}
+
+	fmt.Println("total calculatedPoolPrices: ", len(calculatedPoolPrices))
+	fmt.Println("nil calculatedPoolPrices items: ", nilCount)
 }
 
 // todo handle errors
@@ -158,6 +164,7 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 		})
 		if err != nil {
 			// todo
+			fmt.Printf("UNI v3: error calculating effective price for %s: %s\n", pool.ID, err)
 		}
 
 		if effectivePrice != nil {

@@ -2,7 +2,6 @@ package clientpool
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -36,8 +35,6 @@ func (p *Pool) GetClient() (*ethclient.Client, error) {
 	if !ok {
 		return nil, errors.New("invalid cursor for clients map")
 	}
-
-	fmt.Printf("getting client %d: %+v\n", p.cursor, c)
 
 	if p.cursor == len(p.connections)-1 {
 		p.cursor = 0

@@ -14,18 +14,16 @@ import (
 	"github.com/zhashkevych/trinity/pkg/web3"
 )
 
-type LiquidityPoolParser struct {
-	client   *ethclient.Client
-	quoterv2 *QuoterV2
+type ClientPool interface {
+	GetClient() (*ethclient.Client, error)
 }
 
-func NewLiquidityPoolParser(client *ethclient.Client) (*LiquidityPoolParser, error) {
-	quoterv2client, err := NewQuoterV2(common.HexToAddress(DexData[web3.ETHEREUM]["QuoterV2"]), client)
-	if err != nil {
-		return nil, err
-	}
+type LiquidityPoolParser struct {
+	clientPool ClientPool
+}
 
-	return &LiquidityPoolParser{client, quoterv2client}, nil
+func NewLiquidityPoolParser(pool ClientPool) *LiquidityPoolParser {
+	return &LiquidityPoolParser{pool}
 }
 
 type CalculateEffectivePriceInput struct {
@@ -77,13 +75,23 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePric
 }
 
 func (lp LiquidityPoolParser) calculateEffectivePrice(inp CalculateEffectivePriceInput) (*big.Float, error) {
+	client, err := lp.clientPool.GetClient()
+	if err != nil {
+		return nil, err
+	}
+
+	quoterv2client, err := NewQuoterV2(common.HexToAddress(DexData[web3.ETHEREUM]["QuoterV2"]), client)
+	if err != nil {
+		return nil, err
+	}
+
 	amountIn := web3.ToTokenUnitsF(inp.amountIn, inp.TokenInDecimals)
 	// amountInF := big.NewFloat(0).SetInt(amountIn)
 
 	res := make([]interface{}, 0)
 	amountInI, _ := amountIn.Int(nil)
 
-	err := lp.quoterv2.CallQuoteExactInputSingle(
+	err = quoterv2client.CallQuoteExactInputSingle(
 		&bind.CallOpts{},
 		&res,
 		IQuoterV2QuoteExactInputSingleParams{

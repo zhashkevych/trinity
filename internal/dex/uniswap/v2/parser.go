@@ -16,13 +16,17 @@ import (
 	"github.com/zhashkevych/trinity/pkg/web3"
 )
 
+type ClientPool interface {
+	GetClient() (*ethclient.Client, error)
+}
+
 type LiquidityPoolParser struct {
-	client *ethclient.Client
+	clientPool ClientPool
 }
 
 // This module can be used both for Uni V2 and Sushiswap
-func NewLiquidityPoolParser(client *ethclient.Client) *LiquidityPoolParser {
-	return &LiquidityPoolParser{client}
+func NewLiquidityPoolParser(pool ClientPool) *LiquidityPoolParser {
+	return &LiquidityPoolParser{pool}
 }
 
 // TODO: maybe move to shared lib
@@ -42,7 +46,12 @@ type CalculateEffectivePriceInput struct {
 // CalculateEffectivePrice requires PoolID, token decimals and AmountIn
 func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePriceInput) (*dex.EffectivePrice, error) {
 	// todo: pass pool
-	uniswapV2Pair, err := NewUniswapV2Pair(common.HexToAddress(inp.PoolID), lp.client)
+	client, err := lp.clientPool.GetClient()
+	if err != nil {
+		return nil, err
+	}
+
+	uniswapV2Pair, err := NewUniswapV2Pair(common.HexToAddress(inp.PoolID), client)
 	if err != nil {
 		return nil, err
 	}
