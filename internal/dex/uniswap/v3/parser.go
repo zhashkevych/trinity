@@ -88,19 +88,7 @@ func (lp LiquidityPoolParser) calculateEffectivePrice(inp CalculateEffectivePric
 
 	amountIn := web3.ToTokenUnitsF(inp.amountIn, inp.TokenInDecimals)
 
-	res := make([]interface{}, 0)
-	amountInI, _ := amountIn.Int(nil)
-
-	err = quoterv2client.CallQuoteExactInputSingle(
-		&bind.CallOpts{},
-		&res,
-		IQuoterV2QuoteExactInputSingleParams{
-			TokenIn:           inp.TokenInAddr,
-			TokenOut:          inp.TokenOutAddr,
-			AmountIn:          amountInI,
-			Fee:               inp.Fee,
-			SqrtPriceLimitX96: big.NewInt(0),
-		})
+	res, err := callQuoteExactInputSingleWithRetry(quoterv2client, inp)
 	if err != nil {
 		return nil, err
 	}

@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -24,6 +25,8 @@ TODO:
 - Implement proper logging
 - Implement graceful shutdown
 */
+
+const PROCESSING_INTERVAL = time.Second * 10
 
 func main() {
 	log.SetFormatter(&log.JSONFormatter{})
@@ -119,16 +122,55 @@ func main() {
 		uniswapV3Pools[i].DexID = dex.UNISWAP_V3
 	}
 
+	file, err = ioutil.ReadFile("pools/sushiswap_Pools.json")
+	if err != nil {
+		log.WithFields(log.Fields{
+			"source": "main.go",
+		}).Error("failed to read uniswap v3 json", err)
+		return
+	}
+
+	sushiswapPools := make([]*dex.PoolPair, 0)
+	err = json.Unmarshal(file, &sushiswapPools)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"source": "main.go",
+		}).Error("failed to unmarshal uniswap v3 json", err)
+		return
+	}
+
+	for i := range sushiswapPools {
+		sushiswapPools[i].DexID = dex.SUSHISWAP
+	}
+
 	uniswapV3Parser := v3.NewLiquidityPoolParser(clientPool)
 	uniswapV2Parser := v2.NewLiquidityPoolParser(clientPool)
 
 	pools := make([]*dex.PoolPair, 0)
 
-	pools = append(pools, uniswapV2Pools[0:50]...)
-	pools = append(pools, uniswapV3Pools[0:50]...)
+	pools = append(pools, uniswapV2Pools[0:200]...)
+	pools = append(pools, uniswapV3Pools[0:200]...)
+	pools = append(pools, sushiswapPools[0:200]...)
 
 	p := processor.NewDexPoolProcessor(uniswapV2Parser, uniswapV3Parser, nc)
 	p.StartProcessing(pools)
+
+	// ctx := context.Background()
+
+	// worker := scheduler.NewScheduler()
+	// worker.Add(ctx, func(ctx context.Context) {
+	// 	log.WithFields(log.Fields{
+	// 		"source":    "main.go",
+	// 		"timestamo": time.Now(),
+	// 	}).Error("processing started", err)
+	// 	p.StartProcessing(pools)
+	// }, PROCESSING_INTERVAL)
+
+	// quit := make(chan os.Signal, 1)
+	// signal.Notify(quit, os.Interrupt, os.Interrupt)
+
+	// <-quit
+	// worker.Stop()
 
 	// Make sure the data is sent before we close the connection
 	nc.Flush()

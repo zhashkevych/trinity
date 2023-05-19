@@ -11,7 +11,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/zhashkevych/trinity/internal/dex"
@@ -63,7 +62,7 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePric
 		return nil, err
 	}
 
-	reserves, err := uniswapV2Pair.GetReserves(&bind.CallOpts{})
+	reserves, err := getReservesWithRetry(uniswapV2Pair)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"source": "uniswap/v2/parser.go",
