@@ -28,6 +28,7 @@ func main() {
 
 		// Print the PoolPairList
 		for i, poolPair := range poolPairList.PoolPairs {
+			fmt.Println(" ---------- ")
 			fmt.Printf("PoolPair %d:\n", i+1)
 			fmt.Printf("DexID: %v\n", poolPair.DexId)
 			fmt.Printf("ID: %v\n", poolPair.Id)

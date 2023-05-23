@@ -1,7 +1,6 @@
 package processor
 
 import (
-	"fmt"
 	"math/big"
 	"strconv"
 	"sync"
@@ -48,8 +47,6 @@ func NewDexPoolProcessor(uniV2Client UniV2Parser, uniV3Client UniV3Parser, mq *n
 }
 
 func (p *DexPoolProcessor) StartProcessing(pools []*dex.PoolPair) {
-	fmt.Println(len(pools))
-
 	ts := time.Now()
 
 	wg := &sync.WaitGroup{}

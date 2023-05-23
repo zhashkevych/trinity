@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -153,26 +155,35 @@ func main() {
 	pools = append(pools, sushiswapPools[0:200]...)
 
 	p := processor.NewDexPoolProcessor(uniswapV2Parser, uniswapV3Parser, nc)
-	p.StartProcessing(pools)
 
-	// ctx := context.Background()
+	// Create a channel to listen for termination signals
+	termChan := make(chan os.Signal, 1)
+	signal.Notify(termChan, syscall.SIGINT, syscall.SIGTERM)
+	done := make(chan struct{})
 
-	// worker := scheduler.NewScheduler()
-	// worker.Add(ctx, func(ctx context.Context) {
-	// 	log.WithFields(log.Fields{
-	// 		"source":    "main.go",
-	// 		"timestamo": time.Now(),
-	// 	}).Error("processing started", err)
-	// 	p.StartProcessing(pools)
-	// }, PROCESSING_INTERVAL)
+	go func(doneCh chan struct{}) {
+		timer := time.NewTicker(time.Second * 10)
+		for {
+			select {
+			case <-timer.C:
+				log.WithFields(log.Fields{
+					"source": "main.go",
+					"time":   time.Now(),
+				}).Info("Started processing")
+				p.StartProcessing(pools)
+			case <-doneCh:
+				log.WithFields(log.Fields{
+					"source": "main.go",
+					"time":   time.Now(),
+				}).Info("Finished processing")
+			}
+		}
+	}(done)
 
-	// quit := make(chan os.Signal, 1)
-	// signal.Notify(quit, os.Interrupt, os.Interrupt)
+	// Wait for a termination signal
+	<-termChan
+	done <- struct{}{}
 
-	// <-quit
-	// worker.Stop()
-
-	// Make sure the data is sent before we close the connection
 	nc.Flush()
 
 	if err := nc.LastError(); err != nil {
