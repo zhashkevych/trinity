@@ -72,8 +72,10 @@ func main() {
 		clientPool.GetClient()
 	}
 
+	natsURL := os.Getenv("NATS_URL")
+
 	// Connect to NATS MQ
-	nc, err := nats.Connect(nats.DefaultURL)
+	nc, err := nats.Connect(natsURL)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"source": "main.go",
