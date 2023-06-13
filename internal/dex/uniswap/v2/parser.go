@@ -133,7 +133,7 @@ func (lp LiquidityPoolParser) calculateEffectivePrice(inp calculatePriceInput) (
 
 	tokenBReceived := tokenOutReservesF.Sub(tokenOutReservesF, newTokenBBalance)
 
-	effectivePrice := inp.AmountIn.Quo(inp.AmountIn, tokenBReceived)
+	effectivePrice := inp.AmountIn.Quo(tokenBReceived, inp.AmountIn)
 	if effectivePrice.IsInf() {
 		return nil, errors.New("division by zero")
 	}

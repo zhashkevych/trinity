@@ -112,7 +112,7 @@ func (lp LiquidityPoolParser) calculateEffectivePrice(inp CalculateEffectivePric
 		amountOut = amountOut.Mul(amountOut, big.NewFloat(0).SetInt(exp))
 	}
 
-	pricePerToken := big.NewFloat(0).Quo(amountIn, amountOut)
+	pricePerToken := big.NewFloat(0).Quo(amountOut, amountIn)
 
 	return pricePerToken, nil
 }
