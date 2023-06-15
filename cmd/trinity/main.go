@@ -32,6 +32,7 @@ const PROCESSING_INTERVAL = time.Second * 10
 
 func main() {
 	log.SetFormatter(&log.JSONFormatter{})
+	log.SetOutput(os.Stdout)
 
 	// Load .env file
 	err := godotenv.Load()

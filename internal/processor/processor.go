@@ -161,6 +161,9 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 		if effectivePrice != nil {
 			pool.EffectivePrice0 = effectivePrice.EffectivePrice0
 			pool.EffectivePrice1 = effectivePrice.EffectivePrice1
+
+			pool.Reserve0, _ = new(big.Float).SetInt(effectivePrice.Reserve0).Float64()
+			pool.Reserve1, _ = new(big.Float).SetInt(effectivePrice.Reserve1).Float64()
 		}
 
 		effectivePriceCh <- pool
@@ -222,6 +225,9 @@ func (p *DexPoolProcessor) calculateEffectivePrice(wg *sync.WaitGroup, effective
 		if effectivePrice != nil {
 			pool.EffectivePrice0 = effectivePrice.EffectivePrice0
 			pool.EffectivePrice1 = effectivePrice.EffectivePrice1
+
+			pool.Reserve0, _ = new(big.Float).SetInt(effectivePrice.Reserve0).Float64()
+			pool.Reserve1, _ = new(big.Float).SetInt(effectivePrice.Reserve1).Float64()
 		}
 
 		effectivePriceCh <- pool

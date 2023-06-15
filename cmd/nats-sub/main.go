@@ -34,6 +34,8 @@ func main() {
 			fmt.Printf("ID: %v\n", poolPair.Id)
 			fmt.Printf("EffectivePrice0: %v\n", poolPair.EffectivePrice0)
 			fmt.Printf("EffectivePrice1: %v\n", poolPair.EffectivePrice1)
+			fmt.Printf("Reserve0: %v\n", poolPair.Reserve0)
+			fmt.Printf("Reserve1: %v\n", poolPair.Reserve1)
 			// Add more print statements for the other fields
 		}
 	})

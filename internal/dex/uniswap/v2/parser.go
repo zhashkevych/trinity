@@ -71,6 +71,10 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePric
 		return nil, err
 	}
 
+	// log.WithFields(log.Fields{
+	// 	"source": "uniswap/v2/parser.go",
+	// }).Info("reserves", reserves)
+
 	calcPriceInp := calculatePriceInput{
 		TokenInDecimals:  inp.TokenInDecimals,
 		TokenOutDecimals: inp.TokenOutDecimals,
@@ -104,6 +108,8 @@ func (lp LiquidityPoolParser) CalculateEffectivePrice(inp CalculateEffectivePric
 	return &dex.EffectivePrice{
 		DexID:           dex.UNISWAP_V2,
 		PoolID:          inp.PoolID,
+		Reserve0:        reserves.Reserve0,
+		Reserve1:        reserves.Reserve1,
 		EffectivePrice0: effectivePrice0,
 		EffectivePrice1: effectivePrice1,
 		Timestamp:       time.Now(),
